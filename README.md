@@ -333,11 +333,54 @@ docker compose logs mongodb | grep -i error
 
 ### Firewall Configuration
 
+**CRITICAL**: MongoDB must only be accessible from the private network. Configure firewall rules on the MongoDB server host:
+
 ```bash
-# Allow only tenant servers (example)
-ufw allow from 10.0.0.0/8 to any port 27017
-ufw deny 27017
+# Enable UFW if not already enabled
+sudo ufw enable
+
+# IMPORTANT: Add allow rule FIRST (UFW processes rules in order)
+# Allow MongoDB port (27017) only from private network
+sudo ufw allow from 10.0.0.0/8 to any port 27017 proto tcp comment 'MongoDB - Private network only'
+
+# Verify the rule was added
+sudo ufw status numbered
+
+# Test connection from tenant server (should work):
+# mongosh "mongodb://admin:password@10.0.0.2:27017/admin?authSource=admin"
+
+# Test connection from public IP (should fail - blocked by default UFW policy):
+# mongosh "mongodb://admin:password@46.224.54.186:27017/admin?authSource=admin"
 ```
+
+**Note**: UFW's default policy is to deny incoming connections, so connections from outside the private network will be automatically blocked. The allow rule for 10.0.0.0/8 creates an exception for the private network.
+
+**Alternative using iptables (if not using UFW):**
+```bash
+# Allow from private network only
+sudo iptables -A INPUT -p tcp --dport 27017 -s 10.0.0.0/8 -j ACCEPT
+sudo iptables -A INPUT -p tcp --dport 27017 -j DROP
+
+# Save rules (Ubuntu/Debian)
+sudo iptables-save | sudo tee /etc/iptables/rules.v4
+```
+
+**Verify MongoDB is not accessible from public IP:**
+```bash
+# From a machine outside the private network, this should fail:
+# mongosh "mongodb://admin:password@46.224.54.186:27017/admin?authSource=admin"
+# Should timeout or be refused
+
+# From tenant server (10.0.0.4), this should work:
+# mongosh "mongodb://admin:password@10.0.0.2:27017/admin?authSource=admin"
+```
+
+**Security Checklist:**
+- [ ] Firewall rules configured to allow only 10.0.0.0/8
+- [ ] Tested connection from tenant server (should work)
+- [ ] Tested connection from public IP (should fail/timeout)
+- [ ] MongoDB authentication enabled (--auth flag in docker-compose.yml)
+- [ ] Strong passwords set for all MongoDB users
 
 ## Maintenance
 

@@ -61,12 +61,37 @@ db.createUser({
 })
 ```
 
-## 5. Test Connection
+## 5. Configure Firewall (CRITICAL - Security)
 
-From tenant server, test connection:
+**MongoDB must only be accessible from the private network.** Configure firewall on the MongoDB server:
 
 ```bash
-mongosh "mongodb://tenant_{tenantId}:password@mongodb-server-ip:27017/q8_tenant_{tenantId}?authSource=q8_tenant_{tenantId}"
+# Enable UFW
+sudo ufw enable
+
+# Allow MongoDB port (27017) only from private network (10.0.0.0/8)
+sudo ufw allow from 10.0.0.0/8 to any port 27017 proto tcp comment 'MongoDB - Private network only'
+
+# Verify firewall rules
+sudo ufw status numbered
+```
+
+**Verify security:**
+- Connection from tenant server (10.0.0.4) should work
+- Connection from public IP should be blocked
+
+See [README.md](README.md) for detailed firewall configuration.
+
+## 6. Test Connection
+
+From tenant server, test connection using private IP:
+
+```bash
+# Using private IP (recommended)
+mongosh "mongodb://tenant_{tenantId}:password@10.0.0.2:27017/q8_tenant_{tenantId}?authSource=q8_tenant_{tenantId}"
+
+# Or using hostname if configured in /etc/hosts
+mongosh "mongodb://tenant_{tenantId}:password@mongo-prod:27017/q8_tenant_{tenantId}?authSource=q8_tenant_{tenantId}"
 ```
 
 ## Common Commands
@@ -131,9 +156,9 @@ docker compose exec mongodb mongosh --eval "db.adminCommand('ping')"
 
 ## Next Steps
 
+- ✅ Set up firewall rules (CRITICAL - see step 5 above)
 - Set up automated backups (cron job)
 - Configure monitoring
-- Set up firewall rules
 - Review security settings
 
 See [README.md](README.md) for detailed documentation.
