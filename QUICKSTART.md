@@ -71,30 +71,36 @@ mongosh "mongodb://tenant_{tenantId}:password@mongodb-server-ip:27017/q8_tenant_
 
 ## Common Commands
 
+**Note:** If you get permission errors, use `sudo` or add your user to the docker group:
+```bash
+sudo usermod -aG docker $USER
+# Then logout and login again
+```
+
 ```bash
 # View logs
-docker compose logs -f mongodb
+sudo docker compose logs -f mongodb
 
 # Check status
-docker compose ps
+sudo docker compose ps
 
 # Stop MongoDB
-docker compose down
+sudo docker compose down
 
 # Start MongoDB
-docker compose up -d
+sudo docker compose up -d
 
 # Backup all databases
-./backup.sh all
+sudo ./backup.sh all
 
 # Backup specific tenant
-./backup.sh tenant {tenantId}
+sudo ./backup.sh tenant {tenantId}
 
 # Restore from backup
-./restore.sh full_20240101_020000.tar.gz
+sudo ./restore.sh full_20240101_020000.tar.gz
 
 # List backups
-./backup.sh list
+sudo ./backup.sh list
 ```
 
 ## Troubleshooting

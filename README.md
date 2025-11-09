@@ -33,6 +33,7 @@ Production-ready MongoDB server configuration for hosting all Q8 tenant database
 - Docker and Docker Compose installed
 - Server with recommended specs (CCX43 or CCX53)
 - Root or sudo access
+- **Note:** All `docker compose` commands require `sudo` unless your user is in the docker group
 
 ### 2. Initial Setup
 
@@ -50,18 +51,18 @@ nano .env
 openssl rand -base64 32
 
 # Start MongoDB
-docker compose up -d
+sudo docker compose up -d
 
 # Check status
-docker compose ps
-docker compose logs -f mongodb
+sudo docker compose ps
+sudo docker compose logs -f mongodb
 ```
 
 ### 3. Create Admin User
 
 ```bash
 # Connect to MongoDB
-docker compose exec mongodb mongosh -u root -p
+sudo docker compose exec mongodb mongosh -u root -p
 
 # In MongoDB shell, create admin user
 use admin
