@@ -24,7 +24,8 @@ services:
       
       # Configuration
       - ./mongod.conf:/etc/mongod.conf:ro
-      - ./config/mongodb-keyfile:/etc/mongodb/mongodb-keyfile:ro
+      # Keyfile volume removed - only needed for replica sets
+      # - ./config/mongodb-keyfile:/etc/mongodb/mongodb-keyfile:ro
       
       # Logs (mounted for log rotation)
       - mongodb_logs:/var/log/mongodb
