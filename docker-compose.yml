@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: q8-mongodb
+    platform: ${DOCKER_PLATFORM:-linux/amd64}
+    restart: unless-stopped
+    
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: admin
+      
+    ports:
+      - "${MONGO_PORT:-27017}:27017"
+    
+    volumes:
+      # Data persistence
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+      
+      # Configuration
+      - ./mongod.conf:/etc/mongod.conf:ro
+      - ./config/mongodb-keyfile:/etc/mongodb/mongodb-keyfile:ro
+      
+      # Logs (mounted for log rotation)
+      - mongodb_logs:/var/log/mongodb
+      
+      # Backups (mounted for backup scripts)
+      - mongodb_backups:/backup
+      
+    command: 
+      - --config
+      - /etc/mongod.conf
+      - --auth
+      - --keyFile=/etc/mongodb/mongodb-keyfile
+      - --bind_ip_all
+      - --wiredTigerCacheSizeGB
+      - "${MONGO_CACHE_SIZE_GB:-32}"
+    
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    
+    deploy:
+      resources:
+        limits:
+          memory: ${MONGO_MEMORY_LIMIT:-50G}
+          cpus: '${MONGO_CPU_LIMIT:-12}'
+        reservations:
+          memory: ${MONGO_MEMORY_RESERVATION:-32G}
+          cpus: '${MONGO_CPU_RESERVATION:-4}'
+    
+    networks:
+      - mongodb-network
+
+  # Optional: MongoDB Express for web-based admin (development only)
+  # Uncomment for development/testing
+  # mongo-express:
+  #   image: mongo-express:1.0.2-20
+  #   container_name: q8-mongo-express
+  #   restart: unless-stopped
+  #   ports:
+  #     - "${MONGO_EXPRESS_PORT:-8081}:8081"
+  #   environment:
+  #     ME_CONFIG_MONGODB_SERVER: mongodb
+  #     ME_CONFIG_MONGODB_PORT: 27017
+  #     ME_CONFIG_MONGODB_ENABLE_ADMIN: "true"
+  #     ME_CONFIG_MONGODB_AUTH_DATABASE: admin
+  #     ME_CONFIG_MONGODB_ADMINUSERNAME: "${MONGO_USER}"
+  #     ME_CONFIG_MONGODB_ADMINPASSWORD: "${MONGO_PASSWORD}"
+  #     ME_CONFIG_BASICAUTH_USERNAME: "${MONGO_EXPRESS_USER:-admin}"
+  #     ME_CONFIG_BASICAUTH_PASSWORD: "${MONGO_EXPRESS_PASSWORD:-admin}"
+  #   depends_on:
+  #     mongodb:
+  #       condition: service_healthy
+  #   networks:
+  #     - mongodb-network
+
+volumes:
+  mongodb_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MONGO_DATA_DIR:-/var/lib/mongodb}
+  
+  mongodb_config:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MONGO_CONFIG_DIR:-/var/lib/mongodb-config}
+  
+  mongodb_logs:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MONGO_LOG_DIR:-/var/log/mongodb}
+  
+  mongodb_backups:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${MONGO_BACKUP_DIR:-/var/backups/mongodb}
+
+networks:
+  mongodb-network:
+    driver: bridge
+    name: q8-mongodb-network
+
