@@ -58,11 +58,19 @@ if [ ! -f .env ]; then
     local quoted_value="\"${value}\""
     
     if [ "$USE_PERL" = true ]; then
-      # Use \Q...\E to escape all special regex characters in perl
-      perl -pi -e "s/\{${placeholder}\}/\Q${quoted_value}\E/g" .env
+      # Use perl with environment variables to avoid quote escaping issues
+      PLACEHOLDER_VAR="${placeholder}" REPLACEMENT_VAR="${quoted_value}" perl -i -pe '
+        $ph = $ENV{PLACEHOLDER_VAR};
+        $rep = $ENV{REPLACEMENT_VAR};
+        s/\{$ph\}/$rep/g;
+      ' .env
     else
-      # Escape special characters for sed, then quote
-      ESCAPED_VALUE=$(printf '%s\n' "$quoted_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+      # Escape special characters for sed, including quotes and backslashes
+      # Escape backslashes first, then other special chars, then quotes
+      ESCAPED_VALUE=$(printf '%s\n' "$quoted_value" | \
+        sed 's/\\/\\\\/g' | \
+        sed 's/[[\.*^$()+?{|]/\\&/g' | \
+        sed 's/"/\\"/g')
       $SED_INPLACE "s/{${placeholder}}/${ESCAPED_VALUE}/g" .env
     fi
   }
@@ -225,11 +233,19 @@ if grep -qE '\{[^}]+\}' .env; then
     local quoted_value="\"${value}\""
     
     if [ "$USE_PERL" = true ]; then
-      # Use \Q...\E to escape all special regex characters in perl
-      perl -pi -e "s/\{${placeholder}\}/\Q${quoted_value}\E/g" .env
+      # Use perl with environment variables to avoid quote escaping issues
+      PLACEHOLDER_VAR="${placeholder}" REPLACEMENT_VAR="${quoted_value}" perl -i -pe '
+        $ph = $ENV{PLACEHOLDER_VAR};
+        $rep = $ENV{REPLACEMENT_VAR};
+        s/\{$ph\}/$rep/g;
+      ' .env
     else
-      # Escape special characters for sed, then quote
-      ESCAPED_VALUE=$(printf '%s\n' "$quoted_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+      # Escape special characters for sed, including quotes and backslashes
+      # Escape backslashes first, then other special chars, then quotes
+      ESCAPED_VALUE=$(printf '%s\n' "$quoted_value" | \
+        sed 's/\\/\\\\/g' | \
+        sed 's/[[\.*^$()+?{|]/\\&/g' | \
+        sed 's/"/\\"/g')
       $SED_INPLACE "s/{${placeholder}}/${ESCAPED_VALUE}/g" .env
     fi
   }
