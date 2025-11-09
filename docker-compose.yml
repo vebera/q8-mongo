@@ -34,16 +34,16 @@ services:
       - mongodb_backups:/backup
       
     command: 
-      - --config
-      - /etc/mongod.conf
+      # Temporarily bypass config file to isolate issue
+      # - --config
+      # - /etc/mongod.conf
       - --auth
-      # Note: --keyFile is only needed for replica sets
-      # Remove --keyFile if running standalone MongoDB (not replica set)
-      # - --keyFile=/etc/mongodb/mongodb-keyfile
-      # Note: bindIp is configured in mongod.conf
-      # Do not use --bind_ip_all as it would override config file
+      - --bind_ip_all
       - --wiredTigerCacheSizeGB
       - "${MONGO_CACHE_SIZE_GB:-32}"
+      # Log to stdout so we can see errors
+      - --logpath
+      - /proc/1/fd/1
     
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
