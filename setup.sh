@@ -24,10 +24,121 @@ fi
 # Check if .env exists
 if [ ! -f .env ]; then
   echo -e "${YELLOW}⚠️  .env file not found. Creating from .env.example...${NC}"
+  
+  if [ ! -f .env.example ]; then
+    echo -e "${RED}❌ .env.example file not found${NC}"
+    exit 1
+  fi
+  
   cp .env.example .env
-  echo -e "${GREEN}✅ Created .env file. Please edit it with your configuration.${NC}"
+  
+  # Generate unique secrets
+  echo "🔑 Generating unique secret keys..."
+  
+  # Detect sed command (macOS vs Linux)
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    SED_INPLACE="sed -i ''"
+  else
+    SED_INPLACE="sed -i"
+  fi
+  
+  # Use perl for more reliable replacement (fallback to sed if perl not available)
+  USE_PERL=false
+  if command -v perl &> /dev/null; then
+    USE_PERL=true
+  fi
+  
+  # Helper function to replace placeholder in .env file
+  replace_placeholder() {
+    local placeholder=$1
+    local value=$2
+    if [ "$USE_PERL" = true ]; then
+      perl -pi -e "s/\{${placeholder}\}/${value}/g" .env
+    else
+      $SED_INPLACE "s/{${placeholder}}/${value}/g" .env
+    fi
+  }
+  
+  # Generate and replace MongoDB credentials
+  echo "🔑 Generating MongoDB credentials..."
+  MONGO_USER="root"
+  replace_placeholder "MONGO_USER" "$MONGO_USER"
+  
+  MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+  replace_placeholder "MONGO_PASSWORD" "$MONGO_PASSWORD"
+  
+  echo "🔑 Generating MongoDB Express credentials..."
+  MONGO_EXPRESS_USER="admin"
+  replace_placeholder "MONGO_EXPRESS_USER" "$MONGO_EXPRESS_USER"
+  
+  MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+  replace_placeholder "MONGO_EXPRESS_PASSWORD" "$MONGO_EXPRESS_PASSWORD"
+  
+  # Replace any placeholders enclosed in { and }
+  echo "🔄 Replacing remaining placeholders..."
+  
+  # Generate unique values for common placeholders
+  # Replace {random} with random string
+  while grep -q '{random}' .env; do
+    RANDOM_STR=$(openssl rand -hex 16)
+    if [ "$USE_PERL" = true ]; then
+      perl -pi -e "s/\{random\}/${RANDOM_STR}/g" .env
+    else
+      $SED_INPLACE "s/{random}/${RANDOM_STR}/g" .env
+    fi
+  done
+  
+  # Replace {timestamp} with current timestamp
+  while grep -q '{timestamp}' .env; do
+    TIMESTAMP=$(date +%s)
+    if [ "$USE_PERL" = true ]; then
+      perl -pi -e "s/\{timestamp\}/${TIMESTAMP}/g" .env
+    else
+      $SED_INPLACE "s/{timestamp}/${TIMESTAMP}/g" .env
+    fi
+  done
+  
+  # Replace {uuid} with UUID
+  while grep -q '{uuid}' .env; do
+    UUID=$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null || openssl rand -hex 16)
+    if [ "$USE_PERL" = true ]; then
+      perl -pi -e "s/\{uuid\}/${UUID}/g" .env
+    else
+      $SED_INPLACE "s/{uuid}/${UUID}/g" .env
+    fi
+  done
+  
+  # Replace any other {placeholder} patterns with generated secrets
+  # This catches any remaining {something} patterns
+  while grep -qE '\{[^}]+\}' .env; do
+    # Extract placeholder name
+    PLACEHOLDER=$(grep -oE '\{[^}]+\}' .env | head -1)
+    # Generate secret for it
+    SECRET=$(openssl rand -hex 32)
+    if [ "$USE_PERL" = true ]; then
+      # Use perl for replacement (handles special chars better)
+      perl -pi -e "s/\Q${PLACEHOLDER}\E/${SECRET}/g" .env
+    else
+      # Fallback to sed (may have issues with special chars)
+      PLACEHOLDER_NAME=$(echo "$PLACEHOLDER" | tr -d '{}')
+      $SED_INPLACE "s/${PLACEHOLDER}/${SECRET}/g" .env
+    fi
+  done
+  
+  echo -e "${GREEN}✅ Created .env file with generated secrets${NC}"
+  echo -e "${YELLOW}⚠️  IMPORTANT: Save the generated passwords securely!${NC}"
   echo ""
-  read -p "Press Enter after editing .env file to continue..."
+  
+  # Display generated credentials
+  echo "📋 Generated Credentials:"
+  echo "  MONGO_USER: ${MONGO_USER}"
+  echo "  MONGO_PASSWORD: ${MONGO_PASSWORD}"
+  echo "  MONGO_EXPRESS_USER: ${MONGO_EXPRESS_USER}"
+  echo "  MONGO_EXPRESS_PASSWORD: ${MONGO_EXPRESS_PASSWORD}"
+  echo ""
+  echo -e "${YELLOW}💡 These credentials are saved in .env file. Keep it secure!${NC}"
+  echo ""
+  read -p "Press Enter to continue with setup..."
 fi
 
 # Source environment variables
@@ -59,11 +170,86 @@ if [ ! -f config/mongodb-keyfile ]; then
   echo -e "${GREEN}✅ Generated MongoDB keyfile${NC}"
 fi
 
-# Check if password is still default
-if grep -q "CHANGE_THIS" .env; then
-  echo -e "${RED}❌ Please update MONGO_PASSWORD in .env file${NC}"
-  echo -e "${YELLOW}💡 Generate a strong password: openssl rand -base64 32${NC}"
-  exit 1
+# Check if there are any remaining placeholders
+if grep -qE '\{[^}]+\}' .env; then
+  echo -e "${YELLOW}⚠️  Warning: Found remaining placeholders in .env file${NC}"
+  echo "The following placeholders were not replaced:"
+  grep -oE '\{[^}]+\}' .env | sort -u
+  echo ""
+  read -p "Continue anyway? (y/N): " CONTINUE
+  if [ "$CONTINUE" != "y" ] && [ "$CONTINUE" != "Y" ]; then
+    exit 1
+  fi
+fi
+
+# Check if there are any remaining {placeholder} patterns (in case user manually edited)
+if grep -qE '\{[^}]+\}' .env; then
+  echo -e "${YELLOW}⚠️  Found remaining placeholders in .env file${NC}"
+  echo -e "${YELLOW}💡 Generating missing secrets...${NC}"
+  
+  # Detect sed command (macOS vs Linux)
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    SED_INPLACE="sed -i ''"
+  else
+    SED_INPLACE="sed -i"
+  fi
+  
+  # Use perl if available
+  USE_PERL=false
+  if command -v perl &> /dev/null; then
+    USE_PERL=true
+  fi
+  
+  # Helper function to replace placeholder in .env file
+  replace_placeholder() {
+    local placeholder=$1
+    local value=$2
+    if [ "$USE_PERL" = true ]; then
+      perl -pi -e "s/\{${placeholder}\}/${value}/g" .env
+    else
+      $SED_INPLACE "s/{${placeholder}}/${value}/g" .env
+    fi
+  }
+  
+  # Generate MongoDB user if still has placeholder
+  if grep -qE "MONGO_USER=\{MONGO_USER\}|MONGO_USER=.*\{.*\}" .env; then
+    MONGO_USER="root"
+    replace_placeholder "MONGO_USER" "$MONGO_USER"
+    echo -e "${GREEN}✅ Generated MONGO_USER${NC}"
+  fi
+  
+  # Generate MongoDB password if still has placeholder
+  if grep -qE "MONGO_PASSWORD=\{MONGO_PASSWORD\}|MONGO_PASSWORD=.*\{.*\}" .env; then
+    MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+    replace_placeholder "MONGO_PASSWORD" "$MONGO_PASSWORD"
+    echo -e "${GREEN}✅ Generated MONGO_PASSWORD${NC}"
+  fi
+  
+  # Generate MongoDB Express user if still has placeholder
+  if grep -qE "MONGO_EXPRESS_USER=\{MONGO_EXPRESS_USER\}|MONGO_EXPRESS_USER=.*\{.*\}" .env; then
+    MONGO_EXPRESS_USER="admin"
+    replace_placeholder "MONGO_EXPRESS_USER" "$MONGO_EXPRESS_USER"
+    echo -e "${GREEN}✅ Generated MONGO_EXPRESS_USER${NC}"
+  fi
+  
+  # Generate MongoDB Express password if still has placeholder
+  if grep -qE "MONGO_EXPRESS_PASSWORD=\{MONGO_EXPRESS_PASSWORD\}|MONGO_EXPRESS_PASSWORD=.*\{.*\}" .env; then
+    MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+    replace_placeholder "MONGO_EXPRESS_PASSWORD" "$MONGO_EXPRESS_PASSWORD"
+    echo -e "${GREEN}✅ Generated MONGO_EXPRESS_PASSWORD${NC}"
+  fi
+  
+  # Replace any other remaining placeholders
+  while grep -qE '\{[^}]+\}' .env; do
+    PLACEHOLDER=$(grep -oE '\{[^}]+\}' .env | head -1)
+    SECRET=$(openssl rand -hex 32)
+    if [ "$USE_PERL" = true ]; then
+      perl -pi -e "s/\Q${PLACEHOLDER}\E/${SECRET}/g" .env
+    else
+      PLACEHOLDER_NAME=$(echo "$PLACEHOLDER" | tr -d '{}')
+      $SED_INPLACE "s/${PLACEHOLDER}/${SECRET}/g" .env
+    fi
+  done
 fi
 
 # Check Docker
