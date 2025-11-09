@@ -36,7 +36,9 @@ services:
       - --config
       - /etc/mongod.conf
       - --auth
-      - --keyFile=/etc/mongodb/mongodb-keyfile
+      # Note: --keyFile is only needed for replica sets
+      # Remove --keyFile if running standalone MongoDB (not replica set)
+      # - --keyFile=/etc/mongodb/mongodb-keyfile
       # Note: bindIp is configured in mongod.conf
       # Do not use --bind_ip_all as it would override config file
       - --wiredTigerCacheSizeGB
