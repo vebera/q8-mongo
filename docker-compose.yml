@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   mongodb:
     image: mongo:7.0
@@ -50,10 +48,10 @@ services:
       resources:
         limits:
           memory: ${MONGO_MEMORY_LIMIT:-50G}
-          cpus: '${MONGO_CPU_LIMIT:-12}'
+          cpus: '${MONGO_CPU_LIMIT:-6}'
         reservations:
           memory: ${MONGO_MEMORY_RESERVATION:-32G}
-          cpus: '${MONGO_CPU_RESERVATION:-4}'
+          cpus: '${MONGO_CPU_RESERVATION:-2}'
     
     networks:
       - mongodb-network
