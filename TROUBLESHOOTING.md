@@ -64,13 +64,15 @@ docker compose logs -f mongodb
 **2. Permission Issues**
 - Check directory permissions:
   ```bash
-  ls -la /var/lib/mongodb
-  ls -la /var/log/mongodb
+  ls -la /mnt/volume-db-prod/mongodb
+  ls -la /mnt/volume-db-prod/mongodb-logs
   ```
 - Ensure directories are owned by user 999 (MongoDB user):
   ```bash
-  sudo chown -R 999:999 /var/lib/mongodb
-  sudo chown -R 999:999 /var/log/mongodb
+  sudo chown -R 999:999 /mnt/volume-db-prod/mongodb
+  sudo chown -R 999:999 /mnt/volume-db-prod/mongodb-config
+  sudo chown -R 999:999 /mnt/volume-db-prod/mongodb-logs
+  sudo chown -R 999:999 /mnt/volume-db-prod/mongodb-backups
   ```
 
 **3. Configuration Issues**
@@ -134,8 +136,8 @@ docker compose up -d
 ### Reset Everything (⚠️ Deletes Data)
 ```bash
 docker compose down -v
-sudo rm -rf /var/lib/mongodb/*
-sudo rm -rf /var/log/mongodb/*
+sudo rm -rf /mnt/volume-db-prod/mongodb/*
+sudo rm -rf /mnt/volume-db-prod/mongodb-logs/*
 ./setup.sh
 ```
 
@@ -166,12 +168,12 @@ sudo rm -rf /var/log/mongodb/*
 ### Backup Fails
 - Check backup directory permissions:
   ```bash
-  ls -la /var/backups/mongodb
-  sudo chmod 755 /var/backups/mongodb
+  ls -la /mnt/volume-db-prod/mongodb-backups
+  sudo chmod 755 /mnt/volume-db-prod/mongodb-backups
   ```
 - Check disk space:
   ```bash
-  df -h /var/backups/mongodb
+  df -h /mnt/volume-db-prod
   ```
 
 ### Restore Fails

@@ -111,9 +111,11 @@ MONGO_PORT=27017
 MONGO_CACHE_SIZE_GB=32
 
 # Storage Paths
-MONGO_DATA_DIR=/var/lib/mongodb
-MONGO_LOG_DIR=/var/log/mongodb
-MONGO_BACKUP_DIR=/var/backups/mongodb
+# Production volume mounted at /mnt/volume-db-prod
+MONGO_DATA_DIR=/mnt/volume-db-prod/mongodb
+MONGO_CONFIG_DIR=/mnt/volume-db-prod/mongodb-config
+MONGO_LOG_DIR=/mnt/volume-db-prod/mongodb-logs
+MONGO_BACKUP_DIR=/mnt/volume-db-prod/mongodb-backups
 
 # Backup Configuration
 BACKUP_RETENTION_DAYS=7
@@ -145,6 +147,55 @@ The `mongod.conf` file is optimized for production:
 - 30 tenants: ~750-800GB (with backups)
 - 50 tenants: ~1.2-1.5TB (with backups)
 
+### Using a Separate Mounted Volume
+
+If your server has a separate mounted volume (common in Hetzner servers), configure MongoDB to use it:
+
+**1. Verify your mounted volume:**
+```bash
+# List mounted filesystems
+df -h
+
+# Verify /mnt/volume-db-prod is mounted
+mount | grep volume-db-prod
+ls -la /mnt/volume-db-prod
+```
+
+**2. Create directories on the mounted volume:**
+```bash
+# Create directories on /mnt/volume-db-prod
+sudo mkdir -p /mnt/volume-db-prod/mongodb
+sudo mkdir -p /mnt/volume-db-prod/mongodb-config
+sudo mkdir -p /mnt/volume-db-prod/mongodb-logs
+sudo mkdir -p /mnt/volume-db-prod/mongodb-backups
+
+# Set proper permissions (MongoDB runs as user 999)
+sudo chown -R 999:999 /mnt/volume-db-prod/mongodb
+sudo chown -R 999:999 /mnt/volume-db-prod/mongodb-config
+sudo chown -R 999:999 /mnt/volume-db-prod/mongodb-logs
+sudo chown -R 999:999 /mnt/volume-db-prod/mongodb-backups
+```
+
+**3. Update `.env` file:**
+```bash
+# Edit .env file
+nano .env
+
+# Set paths to your mounted volume
+MONGO_DATA_DIR=/mnt/volume-db-prod/mongodb
+MONGO_CONFIG_DIR=/mnt/volume-db-prod/mongodb-config
+MONGO_LOG_DIR=/mnt/volume-db-prod/mongodb-logs
+MONGO_BACKUP_DIR=/mnt/volume-db-prod/mongodb-backups
+```
+
+**4. Restart MongoDB:**
+```bash
+sudo docker compose down
+sudo docker compose up -d
+```
+
+**Note:** The `docker-compose.yml` uses bind mounts, so it will automatically use the paths specified in your `.env` file.
+
 ### Storage Monitoring
 
 Monitor disk usage regularly:
@@ -154,10 +205,10 @@ Monitor disk usage regularly:
 df -h
 
 # Check MongoDB data directory size
-du -sh /var/lib/mongodb
+du -sh ${MONGO_DATA_DIR:-/mnt/volume-db-prod/mongodb}
 
 # Check backup directory size
-du -sh /var/backups/mongodb
+du -sh ${MONGO_BACKUP_DIR:-/mnt/volume-db-prod/mongodb-backups}
 ```
 
 **Alert Thresholds:**
@@ -170,7 +221,7 @@ du -sh /var/backups/mongodb
 
 Backups run daily at 2 AM (configurable via `BACKUP_SCHEDULE`).
 
-**Backup Location:** `/var/backups/mongodb/`
+**Backup Location:** `/mnt/volume-db-prod/mongodb-backups/`
 
 **Backup Retention:** 7 days (configurable via `BACKUP_RETENTION_DAYS`)
 
@@ -303,7 +354,7 @@ docker compose up -d mongodb
 
 ```bash
 # Clean old backups (keep last 7 days)
-find /var/backups/mongodb -type d -mtime +7 -exec rm -rf {} \;
+find /mnt/volume-db-prod/mongodb-backups -type d -mtime +7 -exec rm -rf {} \;
 
 # Clean MongoDB logs (handled by log rotation)
 ```
@@ -327,7 +378,7 @@ docker compose logs mongodb
 df -h
 
 # Check permissions
-ls -la /var/lib/mongodb
+ls -la /mnt/volume-db-prod/mongodb
 ```
 
 ### High Memory Usage
@@ -378,7 +429,7 @@ netstat -tlnp | grep 27017
 For issues or questions:
 - Check logs: `docker compose logs mongodb`
 - Review configuration: `mongod.conf`
-- Check storage: `df -h` and `du -sh /var/lib/mongodb`
+- Check storage: `df -h` and `du -sh /mnt/volume-db-prod/mongodb`
 
 ## Network Setup
 

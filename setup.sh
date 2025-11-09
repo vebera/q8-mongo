@@ -171,18 +171,19 @@ set +a
 
 # Create directories
 echo "📁 Creating directories..."
-mkdir -p "${MONGO_DATA_DIR:-/var/lib/mongodb}"
-mkdir -p "${MONGO_CONFIG_DIR:-/var/lib/mongodb-config}"
-mkdir -p "${MONGO_LOG_DIR:-/var/log/mongodb}"
-mkdir -p "${MONGO_BACKUP_DIR:-/var/backups/mongodb}"
+mkdir -p "${MONGO_DATA_DIR:-/mnt/volume-db-prod/mongodb}"
+mkdir -p "${MONGO_CONFIG_DIR:-/mnt/volume-db-prod/mongodb-config}"
+mkdir -p "${MONGO_LOG_DIR:-/mnt/volume-db-prod/mongodb-logs}"
+mkdir -p "${MONGO_BACKUP_DIR:-/mnt/volume-db-prod/mongodb-backups}"
 mkdir -p config
 
 # Set permissions
 echo "🔐 Setting permissions..."
-chown -R 999:999 "${MONGO_DATA_DIR:-/var/lib/mongodb}"
-chown -R 999:999 "${MONGO_CONFIG_DIR:-/var/lib/mongodb-config}"
-chown -R 999:999 "${MONGO_LOG_DIR:-/var/log/mongodb}"
-chmod 755 "${MONGO_BACKUP_DIR:-/var/backups/mongodb}"
+chown -R 999:999 "${MONGO_DATA_DIR:-/mnt/volume-db-prod/mongodb}"
+chown -R 999:999 "${MONGO_CONFIG_DIR:-/mnt/volume-db-prod/mongodb-config}"
+chown -R 999:999 "${MONGO_LOG_DIR:-/mnt/volume-db-prod/mongodb-logs}"
+chown -R 999:999 "${MONGO_BACKUP_DIR:-/mnt/volume-db-prod/mongodb-backups}"
+chmod 755 "${MONGO_BACKUP_DIR:-/mnt/volume-db-prod/mongodb-backups}"
 
 # Generate MongoDB keyfile if it doesn't exist
 if [ ! -f config/mongodb-keyfile ]; then
@@ -372,9 +373,9 @@ echo ""
 echo "📊 MongoDB Information:"
 echo "  - Container: q8-mongodb"
 echo "  - Port: ${MONGO_PORT:-27017}"
-echo "  - Data: ${MONGO_DATA_DIR:-/var/lib/mongodb}"
-echo "  - Logs: ${MONGO_LOG_DIR:-/var/log/mongodb}"
-echo "  - Backups: ${MONGO_BACKUP_DIR:-/var/backups/mongodb}"
+echo "  - Data: ${MONGO_DATA_DIR:-/mnt/volume-db-prod/mongodb}"
+echo "  - Logs: ${MONGO_LOG_DIR:-/mnt/volume-db-prod/mongodb-logs}"
+echo "  - Backups: ${MONGO_BACKUP_DIR:-/mnt/volume-db-prod/mongodb-backups}"
 echo ""
 echo "🔗 Connection String:"
 echo "  mongodb://${MONGO_USER}:<password>@localhost:${MONGO_PORT:-27017}/admin?authSource=admin"

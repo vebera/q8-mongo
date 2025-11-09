@@ -108,7 +108,7 @@ docker compose logs mongodb
 df -h
 
 # Check permissions
-ls -la /var/lib/mongodb
+ls -la /mnt/volume-db-prod/mongodb
 ```
 
 **Connection refused:**

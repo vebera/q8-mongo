@@ -18,7 +18,7 @@ if [ -f .env ]; then
   set +a
 fi
 
-BACKUP_DIR="${MONGO_BACKUP_DIR:-/var/backups/mongodb}"
+BACKUP_DIR="${MONGO_BACKUP_DIR:-/mnt/volume-db-prod/mongodb-backups}"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-7}"
 DATE=$(date +%Y%m%d_%H%M%S)
 CONTAINER_NAME="q8-mongodb"
