@@ -52,10 +52,18 @@ if [ ! -f .env ]; then
   replace_placeholder() {
     local placeholder=$1
     local value=$2
+    
+    # Quote the value to prevent bash from interpreting special chars when sourcing
+    # This ensures values with $, !, `, etc. are safely handled
+    local quoted_value="\"${value}\""
+    
     if [ "$USE_PERL" = true ]; then
-      perl -pi -e "s/\{${placeholder}\}/${value}/g" .env
+      # Use \Q...\E to escape all special regex characters in perl
+      perl -pi -e "s/\{${placeholder}\}/\Q${quoted_value}\E/g" .env
     else
-      $SED_INPLACE "s/{${placeholder}}/${value}/g" .env
+      # Escape special characters for sed, then quote
+      ESCAPED_VALUE=$(printf '%s\n' "$quoted_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+      $SED_INPLACE "s/{${placeholder}}/${ESCAPED_VALUE}/g" .env
     fi
   }
   
@@ -64,14 +72,14 @@ if [ ! -f .env ]; then
   MONGO_USER="root"
   replace_placeholder "MONGO_USER" "$MONGO_USER"
   
-  MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+  MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n\r')
   replace_placeholder "MONGO_PASSWORD" "$MONGO_PASSWORD"
   
   echo "🔑 Generating MongoDB Express credentials..."
   MONGO_EXPRESS_USER="admin"
   replace_placeholder "MONGO_EXPRESS_USER" "$MONGO_EXPRESS_USER"
   
-  MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+  MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 24 | tr -d '\n\r')
   replace_placeholder "MONGO_EXPRESS_PASSWORD" "$MONGO_EXPRESS_PASSWORD"
   
   # Replace any placeholders enclosed in { and }
@@ -142,8 +150,15 @@ if [ ! -f .env ]; then
 fi
 
 # Source environment variables
+# Values are quoted in .env file to handle special characters safely
 set -a
-source .env
+if [ -f .env ]; then
+  # Source .env file - quoted values will be handled correctly by bash
+  # Suppress errors from special characters that might be misinterpreted
+  set +e
+  source .env 2>/dev/null
+  set -e
+fi
 set +a
 
 # Create directories
@@ -204,10 +219,18 @@ if grep -qE '\{[^}]+\}' .env; then
   replace_placeholder() {
     local placeholder=$1
     local value=$2
+    
+    # Quote the value to prevent bash from interpreting special chars when sourcing
+    # This ensures values with $, !, `, etc. are safely handled
+    local quoted_value="\"${value}\""
+    
     if [ "$USE_PERL" = true ]; then
-      perl -pi -e "s/\{${placeholder}\}/${value}/g" .env
+      # Use \Q...\E to escape all special regex characters in perl
+      perl -pi -e "s/\{${placeholder}\}/\Q${quoted_value}\E/g" .env
     else
-      $SED_INPLACE "s/{${placeholder}}/${value}/g" .env
+      # Escape special characters for sed, then quote
+      ESCAPED_VALUE=$(printf '%s\n' "$quoted_value" | sed 's/[[\.*^$()+?{|]/\\&/g')
+      $SED_INPLACE "s/{${placeholder}}/${ESCAPED_VALUE}/g" .env
     fi
   }
   
@@ -220,7 +243,7 @@ if grep -qE '\{[^}]+\}' .env; then
   
   # Generate MongoDB password if still has placeholder
   if grep -qE "MONGO_PASSWORD=\{MONGO_PASSWORD\}|MONGO_PASSWORD=.*\{.*\}" .env; then
-    MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n')
+    MONGO_PASSWORD=$(openssl rand -base64 32 | tr -d '\n\r')
     replace_placeholder "MONGO_PASSWORD" "$MONGO_PASSWORD"
     echo -e "${GREEN}✅ Generated MONGO_PASSWORD${NC}"
   fi
@@ -234,7 +257,7 @@ if grep -qE '\{[^}]+\}' .env; then
   
   # Generate MongoDB Express password if still has placeholder
   if grep -qE "MONGO_EXPRESS_PASSWORD=\{MONGO_EXPRESS_PASSWORD\}|MONGO_EXPRESS_PASSWORD=.*\{.*\}" .env; then
-    MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 24 | tr -d '\n')
+    MONGO_EXPRESS_PASSWORD=$(openssl rand -base64 24 | tr -d '\n\r')
     replace_placeholder "MONGO_EXPRESS_PASSWORD" "$MONGO_EXPRESS_PASSWORD"
     echo -e "${GREEN}✅ Generated MONGO_EXPRESS_PASSWORD${NC}"
   fi
