@@ -302,20 +302,66 @@ if ! command -v docker compose &> /dev/null && ! command -v docker-compose &> /d
   exit 1
 fi
 
+# Check Docker permissions
+if ! docker info &> /dev/null; then
+  echo -e "${YELLOW}⚠️  Docker permission issue detected${NC}"
+  echo -e "${YELLOW}💡 You need to either:${NC}"
+  echo "   1. Run this script with sudo: sudo ./setup.sh"
+  echo "   2. Add your user to docker group: sudo usermod -aG docker $USER"
+  echo "      (then logout and login again)"
+  echo ""
+  read -p "Continue anyway? (y/N): " CONTINUE
+  if [ "$CONTINUE" != "y" ] && [ "$CONTINUE" != "Y" ]; then
+    exit 1
+  fi
+fi
+
 # Start MongoDB
 echo "🐳 Starting MongoDB container..."
-docker compose up -d
 
-# Wait for MongoDB to be ready
-echo "⏳ Waiting for MongoDB to be ready..."
-sleep 10
+# Check if we need sudo for docker
+DOCKER_CMD="docker compose"
+if ! docker info &> /dev/null 2>&1; then
+  if sudo docker info &> /dev/null 2>&1; then
+    echo -e "${YELLOW}⚠️  Using sudo for Docker commands${NC}"
+    DOCKER_CMD="sudo docker compose"
+  else
+    echo -e "${RED}❌ Cannot access Docker. Please fix permissions or run with sudo${NC}"
+    exit 1
+  fi
+fi
 
-# Check health
-if docker compose exec -T mongodb mongosh --eval "db.adminCommand('ping').ok" --quiet > /dev/null 2>&1; then
+$DOCKER_CMD up -d
+
+# Wait for MongoDB to be ready (it needs time to initialize)
+echo "⏳ Waiting for MongoDB to be ready (this may take 30-60 seconds)..."
+sleep 15
+
+# Try health check with retries
+MAX_RETRIES=6
+RETRY_COUNT=0
+HEALTHY=false
+
+while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+  if $DOCKER_CMD exec -T mongodb mongosh --eval "db.adminCommand('ping').ok" --quiet > /dev/null 2>&1; then
+    HEALTHY=true
+    break
+  fi
+  RETRY_COUNT=$((RETRY_COUNT + 1))
+  echo "  Attempt $RETRY_COUNT/$MAX_RETRIES - MongoDB not ready yet, waiting..."
+  sleep 10
+done
+
+if [ "$HEALTHY" = true ]; then
   echo -e "${GREEN}✅ MongoDB is running and healthy${NC}"
 else
-  echo -e "${RED}❌ MongoDB health check failed${NC}"
-  echo "Check logs with: docker compose logs mongodb"
+  echo -e "${RED}❌ MongoDB health check failed after ${MAX_RETRIES} attempts${NC}"
+  echo ""
+  echo "📋 Troubleshooting steps:"
+  echo "  1. Check logs: $DOCKER_CMD logs mongodb"
+  echo "  2. Check container status: $DOCKER_CMD ps"
+  echo "  3. Check if MongoDB is listening: $DOCKER_CMD exec mongodb mongosh --eval 'db.adminCommand(\"ping\")'"
+  echo ""
   exit 1
 fi
 
@@ -334,8 +380,8 @@ echo "🔗 Connection String:"
 echo "  mongodb://${MONGO_USER}:<password>@localhost:${MONGO_PORT:-27017}/admin?authSource=admin"
 echo ""
 echo "📝 Next Steps:"
-echo "  1. Create admin user: docker compose exec mongodb mongosh -u root -p"
-echo "  2. Check logs: docker compose logs -f mongodb"
-echo "  3. Check status: docker compose ps"
+echo "  1. Create admin user: $DOCKER_CMD exec mongodb mongosh -u root -p"
+echo "  2. Check logs: $DOCKER_CMD logs -f mongodb"
+echo "  3. Check status: $DOCKER_CMD ps"
 echo ""
 
