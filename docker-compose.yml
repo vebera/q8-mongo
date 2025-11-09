@@ -22,28 +22,27 @@ services:
       - mongodb_data:/data/db
       - mongodb_config:/data/configdb
       
-      # Configuration
-      - ./mongod.conf:/etc/mongod.conf:ro
+      # Configuration - temporarily removed to isolate issue
+      # - ./mongod.conf:/etc/mongod.conf:ro
       # Keyfile volume removed - only needed for replica sets
       # - ./config/mongodb-keyfile:/etc/mongodb/mongodb-keyfile:ro
       
-      # Logs (mounted for log rotation)
-      - mongodb_logs:/var/log/mongodb
+      # Logs (mounted for log rotation) - temporarily removed
+      # - mongodb_logs:/var/log/mongodb
       
       # Backups (mounted for backup scripts)
       - mongodb_backups:/backup
       
     command: 
-      # Temporarily bypass config file to isolate issue
-      # - --config
-      # - /etc/mongod.conf
+      # Minimal configuration to isolate startup issue
       - --auth
       - --bind_ip_all
-      - --wiredTigerCacheSizeGB
-      - "${MONGO_CACHE_SIZE_GB:-32}"
-      # Log to stdout so we can see errors
+      # Temporarily remove cache size to test if that's the issue
+      # - --wiredTigerCacheSizeGB
+      # - "${MONGO_CACHE_SIZE_GB:-32}"
+      # Log to stderr so errors are visible
       - --logpath
-      - /proc/1/fd/1
+      - /dev/stderr
     
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping').ok", "--quiet"]
