@@ -10,10 +10,12 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
       MONGO_INITDB_DATABASE: admin
       
-    # SECURITY: Bind port to private network IP only (10.0.0.2)
-    # This ensures MongoDB is only accessible from internal network, not public IP
+    # SECURITY: Port exposed for Docker networking
+    # MongoDB binds to 0.0.0.0 inside container (required for Docker bridge network)
+    # CRITICAL: Configure firewall on host to restrict access to private network only
+    # Run: sudo ufw allow from 10.0.0.0/8 to any port 27017 proto tcp
     ports:
-      - "10.0.0.2:${MONGO_PORT:-27017}:27017"
+      - "${MONGO_PORT:-27017}:27017"
     
     volumes:
       # Data persistence
