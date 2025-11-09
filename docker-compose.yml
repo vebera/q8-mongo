@@ -10,12 +10,10 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
       MONGO_INITDB_DATABASE: admin
       
-    # SECURITY: Port exposed for Docker networking
-    # MongoDB binds to 0.0.0.0 inside container (required for Docker bridge network)
-    # CRITICAL: Configure firewall on host to restrict access to private network only
-    # See README.md "Firewall Configuration" section for setup instructions
+    # SECURITY: Bind port to private network IP only (10.0.0.2)
+    # This ensures MongoDB is only accessible from internal network, not public IP
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      - "10.0.0.2:${MONGO_PORT:-27017}:27017"
     
     volumes:
       # Data persistence
@@ -37,9 +35,8 @@ services:
       - /etc/mongod.conf
       - --auth
       - --keyFile=/etc/mongodb/mongodb-keyfile
-      # SECURITY: bindIp is set in mongod.conf (0.0.0.0 for Docker networking)
-      # Access is restricted by firewall rules on host (must allow only 10.0.0.0/8)
-      # Do not use --bind_ip_all (redundant with bindIp in config file)
+      # Note: bindIp is configured in mongod.conf
+      # Do not use --bind_ip_all as it would override config file
       - --wiredTigerCacheSizeGB
       - "${MONGO_CACHE_SIZE_GB:-32}"
     
@@ -118,4 +115,3 @@ networks:
   mongodb-network:
     driver: bridge
     name: q8-mongodb-network
-
